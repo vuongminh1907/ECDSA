@@ -1,3 +1,7 @@
+import socket
+import json
+import pickle
+import base64
 from random import randint
 from hashlib import sha256
 
@@ -178,8 +182,7 @@ class Signature:
 
     def __str__(self:object) -> str:
         return f"r: {self.r} \ns: {self.s}\nr_id: {self.r_id}"
-
-
+    
 def sign(private_key:PrivateKey, message:bytes) -> Signature:
     curve  = private_key.curve
     secret = private_key.secret
@@ -199,35 +202,61 @@ def sign(private_key:PrivateKey, message:bytes) -> Signature:
     
     return Signature(r, s, r_id)
 
-def verify(public_key:PublicKey, message:bytes, signature:Signature) -> bool:
-    curve = public_key.curve
-    q = public_key.p
-    
-    r = signature.r
-    s = signature.s
+# Create a socket object
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    e = int(sha256(message).hexdigest(), 16)
+# Get the local machine name and choose a port
+host = socket.gethostname()
+port = 8888
 
-    iv = inverse_mod(s, curve.n)
-    u1 = reduce_mod(e * iv, curve.n)
-    u2 = reduce_mod(r * iv, curve.n)
+# Bind the socket to a specific address and port
+server_socket.bind((host, port))
 
-    p1 = curve.scalar_multiplication(u1, curve.g)
-    p2 = curve.scalar_multiplication(u2, q)
+# Listen for incoming connections
+server_socket.listen(1)
 
-    p3 = curve.add(p1, p2)
-    
-    return p3.x % curve.n == r
+# Wait for a client to connect
+print("Waiting for a client to connect...")
+client_socket, addr = server_socket.accept()
+print("Client connected from:", addr)
 
-
+# Send a message to the client
 
 private_key = PrivateKey()
 public_key = private_key.generate_public_key()
 
 # message = b"hello world"
-message = input()
-message = bytes(message, 'utf-8')
+string = input()
+message = bytes(string, 'utf-8')
 signature = sign(private_key, message)
-valid_sign = verify(public_key, message, signature)
 
-print(valid_sign)
+# Prepare the data to be sent
+pk = {
+    "px": public_key.p.x,
+    "py": public_key.p.y
+}
+signature = {
+    "r": signature.r,
+    "s": signature.s,
+    "r_id": signature.r_id
+}
+
+
+# Create a dictionary with the data
+data = {
+    "public_key": pk,
+    "signature": signature,
+    "message": string
+}
+
+# Convert the dictionary to JSON format
+json_data = json.dumps(data)
+
+# Send the JSON data to the client
+client_socket.send(json_data.encode())
+# Receive data from the client
+data = client_socket.recv(1024).decode()
+print("Received from client:", data)
+
+# Close the connection
+client_socket.close()

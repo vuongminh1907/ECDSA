@@ -1,6 +1,7 @@
+import socket
+import json
 from random import randint
 from hashlib import sha256
-
 INF_POINT = None
 
 # Helper functions 
@@ -178,27 +179,7 @@ class Signature:
 
     def __str__(self:object) -> str:
         return f"r: {self.r} \ns: {self.s}\nr_id: {self.r_id}"
-
-
-def sign(private_key:PrivateKey, message:bytes) -> Signature:
-    curve  = private_key.curve
-    secret = private_key.secret
-
-    e = int(sha256(message).hexdigest(), 16)
-    r, s = 0, 0
-    while r == 0 or s == 0:
-        k  = randint(1, curve.n-1)
-        kp = curve.scalar_multiplication(k, curve.g)
-        
-        r  = reduce_mod(kp.x, curve.n)
-        s  = reduce_mod(inverse_mod(k, curve.n) * (e + r*secret), curve.n)
     
-    r_id = kp.y & 1
-    if kp.y > curve.n:
-        r_id += 2
-    
-    return Signature(r, s, r_id)
-
 def verify(public_key:PublicKey, message:bytes, signature:Signature) -> bool:
     curve = public_key.curve
     q = public_key.p
@@ -219,15 +200,40 @@ def verify(public_key:PublicKey, message:bytes, signature:Signature) -> bool:
     
     return p3.x % curve.n == r
 
+    
+# Create a socket object
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+# Get the server IP address and port
+server_ip = socket.gethostname()
+server_port = 8888
 
-private_key = PrivateKey()
-public_key = private_key.generate_public_key()
+# Connect to the server
+client_socket.connect((server_ip, server_port))
 
-# message = b"hello world"
-message = input()
+# Receive data from the server
+data = client_socket.recv(1024).decode()
+
+# Parse the JSON data
+received_data = json.loads(data)
+signature = received_data["signature"]
+message = received_data["message"]
+public_key = received_data["public_key"]
+
+# modify data from server
+signature = Signature(signature["r"],signature["s"],signature["r_id"])
 message = bytes(message, 'utf-8')
-signature = sign(private_key, message)
-valid_sign = verify(public_key, message, signature)
+# remake public key
+p = Point(public_key["px"], public_key["py"])
+public_key = PublicKey(p,secp256k1)
 
-print(valid_sign)
+# veryfi data 
+print("Received message:", message)
+valid_sign = verify(public_key, message, signature)
+print("Verify information: ", valid_sign)
+# Send a message to the server
+message = "Thank for your information, that so great!"
+client_socket.send(message.encode())
+
+# Close the connection
+client_socket.close()
