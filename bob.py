@@ -114,8 +114,8 @@ secp256k1 = Curve(
     b=0x0000000000000000000000000000000000000000000000000000000000000007,
     p=0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f,
     g=Point(
-        0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798,
-        0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8,
+        0x0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798,
+        0x0479BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798,
     ),
     n=0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141
 )
@@ -206,7 +206,7 @@ client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # Get the server IP address and port
 server_ip = socket.gethostname()
-server_port = 8888
+server_port = 9999
 
 # Connect to the server
 client_socket.connect((server_ip, server_port))
@@ -224,12 +224,14 @@ public_key = received_data["public_key"]
 signature = Signature(signature["r"],signature["s"],signature["r_id"])
 message = bytes(message, 'utf-8')
 # remake public key
-p = Point(public_key["px"], public_key["py"])
+p = Point(1270142703384022920960843237466620861552074778230264889013398798315588372704, 111194346752894866842425013508161456436209264044026535663819844470946180109095)
 public_key = PublicKey(p,secp256k1)
 
 # veryfi data 
 print("Received message:", message)
 valid_sign = verify(public_key, message, signature)
+print("\nSignature: \n", signature)
+print("\n")
 print("Verify information: ", valid_sign)
 # Send a message to the server
 message = "Thank for your information, that so great!"

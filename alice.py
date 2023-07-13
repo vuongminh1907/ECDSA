@@ -117,8 +117,8 @@ secp256k1 = Curve(
     b=0x0000000000000000000000000000000000000000000000000000000000000007,
     p=0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f,
     g=Point(
-        0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798,
-        0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8,
+        0x0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798,
+        0x0479BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798,
     ),
     n=0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141
 )
@@ -194,7 +194,7 @@ def sign(private_key:PrivateKey, message:bytes) -> Signature:
         kp = curve.scalar_multiplication(k, curve.g)
         
         r  = reduce_mod(kp.x, curve.n)
-        s  = reduce_mod(inverse_mod(k, curve.n) * (e + r*secret), curve.n)
+        s  = reduce_mod(inverse_mod(k, curve.n) *(e +  r*secret), curve.n)
     
     r_id = kp.y & 1
     if kp.y > curve.n:
@@ -213,50 +213,52 @@ port = 8888
 server_socket.bind((host, port))
 
 # Listen for incoming connections
-server_socket.listen(1)
+server_socket.listen(10)
 
-# Wait for a client to connect
-print("Waiting for a client to connect...")
-client_socket, addr = server_socket.accept()
-print("Client connected from:", addr)
-
-# Send a message to the client
-
+# generate private_key and public_key
 private_key = PrivateKey()
 public_key = private_key.generate_public_key()
-
-# message = b"hello world"
-string = input()
-message = bytes(string, 'utf-8')
-signature = sign(private_key, message)
-
-# Prepare the data to be sent
-pk = {
-    "px": public_key.p.x,
-    "py": public_key.p.y
-}
-signature = {
-    "r": signature.r,
-    "s": signature.s,
-    "r_id": signature.r_id
-}
+print(public_key)
+# Wait for a client to connect
+while (0 == 0):
+    print("Waiting for a client to connect...")
+    client_socket, addr = server_socket.accept()
+    print("Client connected from:", addr)
 
 
-# Create a dictionary with the data
-data = {
-    "public_key": pk,
-    "signature": signature,
-    "message": string
-}
+    # message = b"hello world"
+    string = input()
+    message = bytes(string, 'utf-8')
+    signature = sign(private_key, message)
+    
+    print(signature)
 
-# Convert the dictionary to JSON format
-json_data = json.dumps(data)
+    # Prepare the data to be sent
+    pk = {
+        "px": public_key.p.x,
+        "py": public_key.p.y
+    }
+    signature = {
+        "r": signature.r,
+        "s": signature.s,
+        "r_id": signature.r_id
+    }
 
-# Send the JSON data to the client
-client_socket.send(json_data.encode())
-# Receive data from the client
-data = client_socket.recv(1024).decode()
-print("Received from client:", data)
+    # Create a dictionary with the data
+    data = {
+        "public_key": pk,
+        "signature": signature,
+        "message": string
+    }
+
+    # Convert the dictionary to JSON format
+    json_data = json.dumps(data)
+
+    # Send the JSON data to the client
+    client_socket.send(json_data.encode())
+    # Receive data from the client
+    data = client_socket.recv(1024).decode()
+    print("Received from client:", data)
 
 # Close the connection
 client_socket.close()
