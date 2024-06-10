@@ -1,3 +1,6 @@
+import socket
+import json
+import threading
 from random import randint
 from hashlib import sha256
 
@@ -17,31 +20,31 @@ def inverse_mod(x:int, p:int) -> int:
 
 class File:
     @classmethod
-    def read(path:str) -> str:
+    def read(cls, path:str) -> str:
         with open(path, "r") as file:
             return file.read()
 
     @classmethod
-    def write(path:str, message:str) -> None:
+    def write(cls, path:str, message:str) -> None:
         with open(path, "w") as file:
             file.write(message)
 
     @classmethod
-    def append(path:str, message:str) -> None:
+    def append(cls, path:str, message:str) -> None:
         with open(path, "a") as file:
             file.write(message)
 
     @classmethod
-    def get_size(path:str) -> int:
+    def get_size(cls, path:str) -> int:
         pass
 
 class Converter:
     @classmethod
-    def hex_to_string(h:hex) -> str:
+    def hex_to_string(cls, h:hex) -> str:
         pass
 
     @classmethod
-    def string_to_hex(s:str) -> hex:
+    def string_to_hex(cls, s:str) -> hex:
         pass
 
 class Point:
@@ -53,17 +56,6 @@ class Point:
         return f"({self.x}, {self.y})"
 
 class Curve:
-    """
-
-    y^2 = x^3 + ax + b
-
-    params:
-        name -> curve name
-        a, b -> curve paramets
-        p    -> field
-        g    -> generator point
-        n    -> number of points generate by scalar multiplication using the point g
-    """
     def __init__(self, name:str, a:int, b:int, p:int, g:Point, n:int) -> None:
         self.name = name
         self.a = a
@@ -95,7 +87,7 @@ class Curve:
 
         return Point(x3, y3)
 
-    def scalar_multiplication(self:object, k:int, p:Point) -> Point:
+    def scalar_multiplication(self, k:int, p:Point) -> Point:
         q = INF_POINT
         while k != 0:
             if k & 1 != 0:
@@ -113,19 +105,18 @@ secp256k1 = Curve(
     b=0x0000000000000000000000000000000000000000000000000000000000000007,
     p=0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f,
     g=Point(
-        0x0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798,
-        0x0479BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798,
+        0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798,
+        0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
     ),
     n=0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141
 )
 
-
 class PublicKey:
-    def __init__(self:object, p:object, curve:object) -> None:
+    def __init__(self, p:Point, curve:Curve) -> None:
         self.p = p
         self.curve = curve
 
-    def to_string(self:object, encoded=False) -> str:
+    def to_string(self, encoded=False) -> str:
         base = 2 * (1 + len("%x" % self.curve.n))
 
         x = str(hex(self.p.x)).zfill(base)
@@ -135,16 +126,16 @@ class PublicKey:
             return "0004" + x + y
         return x + y 
 
-    def from_strin(self:object) -> str:
+    def from_string(self) -> str:
         pass
 
-    def to_der(self:object) -> str:
+    def to_der(self) -> str:
         pass
 
-    def from_der(self:object) -> str:
+    def from_der(self) -> str:
         pass
 
-    def __str__(self:object) -> str:
+    def __str__(self) -> str:
         return f"curve: {self.curve.name}\npoint: {self.p}"
 
 class PrivateKey:
@@ -155,7 +146,6 @@ class PrivateKey:
     def generate_public_key(self):
         public_key_point = self.curve.scalar_multiplication(self.secret, self.curve.g)
         public_key = PublicKey(public_key_point, self.curve)
-
         return public_key
 
     def load_from_pem_file(self, path:str):
@@ -172,14 +162,13 @@ class PrivateKey:
         return f"curve:  {self.curve.name}\nsecret: {hex(self.secret)}"
 
 class Signature:
-    def __init__(self:object, r:int, s:int, r_id:int):
+    def __init__(self, r:int, s:int, r_id:int):
         self.r = r
         self.s = s
         self.r_id = r_id
 
-    def __str__(self:object) -> str:
+    def __str__(self) -> str:
         return f"r: {self.r} \ns: {self.s}\nr_id: {self.r_id}"
-
 
 def sign(private_key:PrivateKey, message:bytes) -> Signature:
     curve  = private_key.curve
@@ -192,7 +181,7 @@ def sign(private_key:PrivateKey, message:bytes) -> Signature:
         kp = curve.scalar_multiplication(k, curve.g)
         
         r  = reduce_mod(kp.x, curve.n)
-        s  = reduce_mod(inverse_mod(k, curve.n) * (e + r*secret), curve.n)
+        s  = reduce_mod(inverse_mod(k, curve.n) *(e +  r*secret), curve.n)
     
     r_id = kp.y & 1
     if kp.y > curve.n:
@@ -200,35 +189,72 @@ def sign(private_key:PrivateKey, message:bytes) -> Signature:
     
     return Signature(r, s, r_id)
 
-def verify(public_key:PublicKey, message:bytes, signature:Signature) -> bool:
-    curve = public_key.curve
-    q = public_key.p
-    
-    r = signature.r
-    s = signature.s
+# Handle client connection
+def handle_client(client_socket):
+    # generate private_key and public_key
+    private_key = PrivateKey()
+    public_key = private_key.generate_public_key()
+    print(public_key)
 
-    e = int(sha256(message).hexdigest(), 16)
+    # Prepare the data to be sent
+    while True:
+        try:
+            string = input("Enter a message to send to the client: ")
+            message = bytes(string, 'utf-8')
+            signature = sign(private_key, message)
+            print(signature)
 
-    iv = inverse_mod(s, curve.n)
-    u1 = reduce_mod(e * iv, curve.n)
-    u2 = reduce_mod(r * iv, curve.n)
+            pk = {
+                "px": public_key.p.x,
+                "py": public_key.p.y
+            }
+            signature_data = {
+                "r": signature.r,
+                "s": signature.s,
+                "r_id": signature.r_id
+            }
 
-    p1 = curve.scalar_multiplication(u1, curve.g)
-    p2 = curve.scalar_multiplication(u2, q)
+            data = {
+                "public_key": pk,
+                "signature": signature_data,
+                "message": string
+            }
 
-    p3 = curve.add(p1, p2)
-    
-    return p3.x % curve.n == r
+            json_data = json.dumps(data)
 
+            # Send the JSON data to the client
+            client_socket.send(json_data.encode())
 
+            # Receive data from the client
+            response = client_socket.recv(1024).decode()
+            if not response:
+                break
+            print("Received from client:", response)
 
-private_key = PrivateKey()
-public_key = private_key.generate_public_key()
+        except ConnectionResetError:
+            break
 
-# message = b"hello world"
-message = input()
-message = bytes(message, 'utf-8')
-signature = sign(private_key, message)
-valid_sign = verify(public_key, message, signature)
-print("Public key: ", public_key)
-print(valid_sign)
+    # Close the connection
+    client_socket.close()
+
+# Create a socket object
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# Get the local machine name and choose a port
+host = socket.gethostname()
+port = 8888
+
+# Bind the socket to the port
+server_socket.bind((host, port))
+
+# Listen for incoming connections
+server_socket.listen(10)
+
+print("Server is listening on port", port)
+
+# Accept multiple clients
+while True:
+    client_socket, addr = server_socket.accept()
+    print("Client connected from:", addr)
+    client_handler = threading.Thread(target=handle_client, args=(client_socket,))
+    client_handler.start()

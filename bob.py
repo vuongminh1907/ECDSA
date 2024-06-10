@@ -206,36 +206,43 @@ client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # Get the server IP address and port
 server_ip = socket.gethostname()
-server_port = 9999
+server_port = 8888
 
 # Connect to the server
 client_socket.connect((server_ip, server_port))
 
-# Receive data from the server
-data = client_socket.recv(1024).decode()
+while (0==0):
+    # Receive data from the server
+    data = client_socket.recv(1024).decode()
 
-# Parse the JSON data
-received_data = json.loads(data)
-signature = received_data["signature"]
-message = received_data["message"]
-public_key = received_data["public_key"]
+    # Parse the JSON data
+    received_data = json.loads(data)
+    signature = received_data["signature"]
+    message = received_data["message"]
+    print("\nMessage:", message)
+    public_key = received_data["public_key"]
+    px = public_key["px"]
+    py = public_key["py"]
 
-# modify data from server
-signature = Signature(signature["r"],signature["s"],signature["r_id"])
-message = bytes(message, 'utf-8')
-# remake public key
-p = Point(1270142703384022920960843237466620861552074778230264889013398798315588372704, 111194346752894866842425013508161456436209264044026535663819844470946180109095)
-public_key = PublicKey(p,secp256k1)
+    # modify data from server
+    signature = Signature(signature["r"],signature["s"],signature["r_id"])
+    message = bytes(message, 'utf-8')
+    # remake public key
+    #p = Point(1270142703384022920960843237466620861552074778230264889013398798315588372704, 111194346752894866842425013508161456436209264044026535663819844470946180109095)
+    p = Point(px, py)
+    public_key = PublicKey(p,secp256k1)
 
-# veryfi data 
-print("Received message:", message)
-valid_sign = verify(public_key, message, signature)
-print("\nSignature: \n", signature)
-print("\n")
-print("Verify information: ", valid_sign)
-# Send a message to the server
-message = "Thank for your information, that so great!"
-client_socket.send(message.encode())
+    # veryfi data 
+    valid_sign = verify(public_key, message, signature)
+    print("\nSignature: \n", signature)
+    print("\n")
+    print("Verify information: ", valid_sign)
+    # Send a message to the server
+    #message = "Thank for your information, that so great!"
+    message = input("Enter a message: ")
+    client_socket.send(message.encode())
+    if message == "exit":
+        break
 
 # Close the connection
 client_socket.close()

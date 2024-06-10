@@ -208,9 +208,9 @@ server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 # Get the local machine name and choose a port
 host = socket.gethostname()
 port = 8888
-
-# Bind the socket to a specific address and port
+# Bind two ports to the server
 server_socket.bind((host, port))
+
 
 # Listen for incoming connections
 server_socket.listen(10)
@@ -225,40 +225,43 @@ while (0 == 0):
     client_socket, addr = server_socket.accept()
     print("Client connected from:", addr)
 
-
-    # message = b"hello world"
-    string = input()
-    message = bytes(string, 'utf-8')
-    signature = sign(private_key, message)
     
-    print(signature)
+    while(0 == 0):
+        # message = b"hello world"
+        string = input("Enter a message: ")
+        message = bytes(string, 'utf-8')
+        signature = sign(private_key, message)
+        
+        print(signature)
 
-    # Prepare the data to be sent
-    pk = {
-        "px": public_key.p.x,
-        "py": public_key.p.y
-    }
-    signature = {
-        "r": signature.r,
-        "s": signature.s,
-        "r_id": signature.r_id
-    }
+        # Prepare the data to be sent
+        pk = {
+            "px": public_key.p.x,
+            "py": public_key.p.y
+        }
+        signature = {
+            "r": signature.r,
+            "s": signature.s,
+            "r_id": signature.r_id
+        }
 
-    # Create a dictionary with the data
-    data = {
-        "public_key": pk,
-        "signature": signature,
-        "message": string
-    }
+        # Create a dictionary with the data
+        data = {
+            "public_key": pk,
+            "signature": signature,
+            "message": string
+        }
 
-    # Convert the dictionary to JSON format
-    json_data = json.dumps(data)
+        # Convert the dictionary to JSON format
+        json_data = json.dumps(data)
 
-    # Send the JSON data to the client
-    client_socket.send(json_data.encode())
-    # Receive data from the client
-    data = client_socket.recv(1024).decode()
-    print("Received from client:", data)
+        # Send the JSON data to the client
+        client_socket.send(json_data.encode())
+        # Receive data from the client
+        data = client_socket.recv(1024).decode()
+        print("Received from client:", data)
+        if data == "exit":
+            break
 
 # Close the connection
 client_socket.close()
